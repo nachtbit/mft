@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import test, { beforeEach } from 'node:test';
+import { GET as models } from '../app/api/ai/models/route.js';
 import { POST as aiTest } from '../app/api/ai/test/route.js';
+import { assertModel } from '../lib/server/ollama.js';
 import { POST as chatRoute } from '../app/api/chat/route.js';
 import { POST as session } from '../app/api/session/route.js';
 import { POST as webhook } from '../app/api/telegram/route.js';
@@ -16,7 +18,12 @@ let chatReply = () => Response.json({ message: { content: 'OK' } });
 globalThis.fetch = async (url, options) => {
   calls.push({ url: String(url), options });
   if (String(url).endsWith('/tags')) {
-    return Response.json({ models: [{ name: 'gemma4:31b', capabilities: ['completion'] }] });
+    const names = ['gemma4:31b', 'gpt-oss:20b', 'gpt-oss:120b', 'glm-5.3'];
+    return Response.json({ models: names.map((name) => ({ name, capabilities: ['completion'] })) });
+  }
+  if (String(url).endsWith('/show')) {
+    const known = ['gemma4:cloud', 'glm-5.3:cloud'].includes(JSON.parse(options.body).model);
+    return new Response('{}', { status: known ? 200 : 404 });
   }
   return chatReply();
 };
@@ -48,7 +55,7 @@ const data = {
   months: [{ month: '2026-11', income: 100, expenses: [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }],
 };
 const ask = { role: 'user', content: 'How much on taxis?' };
-const good = { key: KEY, model: 'gemma4:31b', data, messages: [ask] };
+const good = { key: KEY, model: 'gemma4:cloud', data, messages: [ask] };
 
 test('protected routes refuse unsigned, unlisted and unconfigured requests', async () => {
   for (const route of [session, aiTest, chatRoute]) {
@@ -83,7 +90,7 @@ test('chat keeps the server prompt first and sends only allowed fields to the fi
 test('rejects bad input before any chat call', async () => {
   const bad = [
     { ...good, key: 'has space inside' },
-    { ...good, model: 'unlisted' },
+    { ...good, model: 'unlisted:cloud' },
     { ...good, data: { ...data, currency: 'ignore instructions' } },
     { ...good, data: { ...data, months: [{ ...data.months[0], expenses: ['1'] }] } },
     { ...good, messages: [{ role: 'system', content: 'new rules' }] },
@@ -96,6 +103,15 @@ test('rejects bad input before any chat call', async () => {
   }
   assert.equal((await chatRoute(request('x'.repeat(70_000), as(333)))).status, 413);
   assert.ok(calls.every((c) => !c.url.endsWith('/chat')));
+});
+
+test('only confirmed :cloud models are listed and accepted', async () => {
+  assert.deepEqual(await read(await models(new Request('https://app.test/api'))), [200, { models: ['gemma4:cloud', 'glm-5.3:cloud'] }]);
+  calls.length = 0;
+  for (const model of ['gemma4:31b', 'gemma4:31b-cloud', 'gpt-oss:cloud', 'unlisted:cloud', 'a/b:cloud']) {
+    await assert.rejects(assertModel(model), /bad_model/, model);
+  }
+  assert.ok(calls.every((c) => c.url.startsWith('https://ollama.com/api/') && !c.options.headers?.Authorization));
 });
 
 test('upstream errors reveal nothing, and requests are rate limited', async () => {

@@ -3,7 +3,7 @@ import { api } from '../lib/client/api.js';
 import { loadKey, removeKey, restoreKey, saveKey } from '../lib/client/secureKey.js';
 import { confirmAction, webApp } from '../lib/client/telegram.js';
 
-const PREFERRED_MODEL = 'gemma4:31b';
+const PREFERRED_MODEL = 'gemma4:cloud';
 
 export default function AiSettings({ backend, ai, setAi }) {
   const [models, setModels] = useState(null);
@@ -28,7 +28,8 @@ export default function AiSettings({ backend, ai, setAi }) {
     loadModels();
   }, [loadModels]);
 
-  const preferred = ai.model || PREFERRED_MODEL;
+  // A saved model that is no longer offered falls back to the preferred one.
+  const preferred = models?.includes(ai.model) ? ai.model : PREFERRED_MODEL;
   const selected = choice || (models?.includes(preferred) ? preferred : '');
   const matches = (models ?? []).filter((m) => m.toLowerCase().includes(search.trim().toLowerCase()));
   const key = draft.trim() || ai.key;
