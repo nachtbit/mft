@@ -50,14 +50,15 @@ Redeploy after changing them.
 
 ## Set up the bot
 
-After deploying, put `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` and `APP_URL` (the production URL) in
-`.env.local`, then run:
+After deploying, put `BOT_TOKEN`, `ALLOWED_IDS`, `TELEGRAM_WEBHOOK_SECRET` and `APP_URL` (the
+production URL) in `.env.local`. Each allowed user should message the bot once. Then run:
 
 ```bash
 node --env-file=.env.local scripts/set-webhook.mjs
 ```
 
-This registers the webhook and sets the chat menu button to **Open**, which opens the app directly.
+This registers the webhook and sets the menu button to **Open**, which opens the app directly, both
+as the default and in each allowed user's chat. It reads each setting back and reports the result.
 It discards bot messages that are still waiting. While a webhook is set, `getUpdates` does not work.
 
 For an Open button in the chat list and on the bot's profile, also enable the **Main Mini App** in
