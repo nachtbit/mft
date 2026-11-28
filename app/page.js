@@ -165,7 +165,7 @@ export default function Page() {
             onNew={() => setSheet({ type: 'goalForm' })} onOpen={(goal) => setSheet({ type: 'goal', goalId: goal.id })} />
         )}
         {tab === 'assistant' && (
-          <Assistant data={shownData} ai={ai} chat={chat} setChat={setChat} onSetup={() => setProfile(true)} onSelect={select} />
+          <Assistant data={shownData} ai={ai} chat={chat} setChat={setChat} onSetup={() => setProfile(true)} />
         )}
         {foreign && (tab === 'analytics' || tab === 'assistant') && <p className="center"><RatesCredit /></p>}
       </main>

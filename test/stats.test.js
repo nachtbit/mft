@@ -8,7 +8,7 @@ import { convert } from '../lib/currency.js';
 import { view } from '../lib/view.js';
 import {
   analytics, balance, forecast, healthScore, monthChange, periodLimit, savedInMonth, snapshot,
-  subscriptions, weekendPattern,
+  weekendPattern,
 } from '../lib/stats.js';
 
 let n = 0;
@@ -41,14 +41,12 @@ test('period totals, limits and weekday bars', () => {
   assert.equal(periodLimit('year', NOW, 30_000), 360_000);
 });
 
-test('forecast, weekend pattern, subscriptions and score', () => {
+test('forecast, weekend pattern and score', () => {
   assert.equal(forecast([], meta, NOW), null);
   const items = Array.from({ length: 28 }, (_, i) => item(`2026-11-${String(i + 1).padStart(2, '0')}`, 1000));
   const result = forecast(items, meta, NOW);
   assert.deepEqual([result.days, result.projected, result.remaining], [20, 30_000, 70_000]);
   assert.equal(weekendPattern(items, NOW), 0);
-  const subs = subscriptions([...items, item('2026-11-20', 990, { category: 4, title: 'Apple One' })], NOW);
-  assert.deepEqual([subs.total, subs.names], [990, ['Apple One']]);
   assert.equal(healthScore(items, meta, [], NOW).value, 88);
   assert.equal(healthScore(items.slice(0, 4), meta, [], NOW), null);
 });

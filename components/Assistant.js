@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/client/api.js';
 import { today } from '../lib/dates.js';
-import { money } from '../lib/format.js';
-import { forecast, healthScore, snapshot, subscriptions, weekendPattern } from '../lib/stats.js';
-import { OperationList } from './Operations.js';
-import { Icon, Progress, Sheet } from './ui.js';
+import { healthScore, snapshot } from '../lib/stats.js';
+import { Icon, Sheet } from './ui.js';
 
 const GREETING = 'Hello! Which part of your budget can we improve today?';
 const QUICK = [
@@ -25,13 +23,10 @@ function Score({ value }) {
   );
 }
 
-export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }) {
+export default function Assistant({ data, ai, chat, setChat, onSetup }) {
   const { meta, items, goals } = data;
   const now = today();
   const score = healthScore(items, meta, goals, now);
-  const subs = subscriptions(items, now);
-  const outlook = forecast(items, meta, now);
-  const weekend = weekendPattern(items, now);
   const [input, setInput] = useState('');
   const [needsSetup, setNeedsSetup] = useState(false);
   const [sheet, setSheet] = useState('');
@@ -78,59 +73,6 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
         <Score value={score?.value} />
       </button>
 
-      <div className="title-row"><span className="muted">Observations</span></div>
-
-      <section className="card">
-        <div className="row">
-          <span className="square"><Icon name="credit_card_off" /></span>
-          <span className="grow">
-            <strong>Subscriptions</strong>
-            <small>{subs.items.length ? `${subs.items.length} in the last 30 days` : 'None in the last 30 days'}</small>
-          </span>
-          {subs.total > 0 && <span className="pill alert-pill">−{money(subs.total, meta.currency)}/mo</span>}
-        </div>
-        {subs.items.length > 0 && (
-          <div className="title-row tight">
-            <span className="initials">{subs.names.slice(0, 3).map((n) => <i key={n}>{[...n][0].toUpperCase()}</i>)}</span>
-            <button className="button primary compact" onClick={() => setSheet('subs')}>
-              Review<Icon name="arrow_forward" size={18} />
-            </button>
-          </div>
-        )}
-      </section>
-
-      <section className="card">
-        <div className="row">
-          <span className="square"><Icon name="trending_up" /></span>
-          <span className="grow">
-            <strong>End-of-month forecast</strong>
-            {!outlook && <small>Not enough data</small>}
-          </span>
-        </div>
-        {outlook && (
-          <>
-            <div className="title-row tight">
-              <span className="stat large">~ {money(Math.round(outlook.remaining / 100) * 100, meta.currency)}</span>
-              <small>left over</small>
-            </div>
-            <Progress value={outlook.share} />
-          </>
-        )}
-      </section>
-
-      <section className="card row">
-        <span className="square"><Icon name="calendar_month" /></span>
-        <span className="grow">
-          <strong>Weekend pattern</strong>
-          <small>
-            {weekend === null ? 'Not enough data'
-              : weekend === 0 ? 'Weekend and weekday spending are the same'
-              : `Saturday and Sunday spending is ${Math.abs(weekend)}% ${weekend > 0 ? 'higher' : 'lower'}`}
-          </small>
-        </span>
-        <span className="circle small-circle"><Icon name="trending_up" size={20} /></span>
-      </section>
-
       <p className="label section-label">Quick questions</p>
       <div className="quick">
         {QUICK.map(([icon, text]) => (
@@ -169,11 +111,6 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
           {!score ? <p>Not enough data yet.</p>
             : !score.penalties.length ? <p>No points were taken off.</p>
             : <ul className="plain">{score.penalties.map((p) => <li key={p.reason}><span className="grow">{p.reason}</span><strong>−{p.points}</strong></li>)}</ul>}
-        </Sheet>
-      )}
-      {sheet === 'subs' && (
-        <Sheet title="Subscriptions in the last 30 days" onClose={() => setSheet('')}>
-          <OperationList items={subs.items} onSelect={(item) => { setSheet(''); onSelect(item); }} />
         </Sheet>
       )}
     </>

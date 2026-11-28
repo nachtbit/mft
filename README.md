@@ -9,7 +9,7 @@ A Telegram Mini App for personal finance with an optional AI assistant. The inte
   and savings actions, recent entries.
 - **Analytics:** week, month and year spending, limit, category chart, daily chart.
 - **Savings:** savings goals with manual and quick deposits.
-- **Assistant:** score, subscriptions, forecast, weekend pattern and AI chat.
+- **Assistant:** score and AI chat.
 - **Profile button:** currencies, opening balances, limit, name, light or dark theme, AI setup, backup, access check.
 
 ## Currencies
@@ -28,7 +28,7 @@ among them.
 - Currency exchange between your wallets is not a separate operation yet.
 
 The app has no bank connection. Entries are typed in, and savings are records only: no money
-moves. The score, forecast and patterns are simple calculations in [lib/stats.js](lib/stats.js).
+moves. The score is a simple calculation in [lib/stats.js](lib/stats.js).
 
 ## How it works
 
