@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { toItem } from '../lib/ledger.js';
 import { money } from '../lib/format.js';
+import { greeting } from '../lib/dates.js';
 import { parseSnapshot } from '../lib/server/assistant.js';
 import { convert } from '../lib/currency.js';
 import { view } from '../lib/view.js';
@@ -55,8 +56,8 @@ test('forecast, weekend pattern, subscriptions and score', () => {
 test('the AI snapshot holds no names and passes server validation', () => {
   const items = [item('2026-11-02', 300, { title: 'PRIVATE', cashback: 10 })];
   const goals = [{ id: 'goal0001', title: 'SECRET', base: 0, target: 100, log: {} }];
-  const data = snapshot(items, meta, goals, NOW);
-  assert.doesNotMatch(JSON.stringify(data), /PRIVATE|SECRET|goal0001|t10/);
+  const data = snapshot(items, { ...meta, name: 'Test Person' }, goals, NOW);
+  assert.doesNotMatch(JSON.stringify(data), /PRIVATE|SECRET|goal0001|t10|Test Person/);
   assert.equal(parseSnapshot(data), data);
   assert.equal(savedInMonth(goals, items, '2026-11'), 10);
 });
@@ -100,4 +101,9 @@ test('without rates, saved values still work and gaps are flagged', () => {
   assert.equal(shown.items[0].cents, 14_000);
   assert.equal(shown.meta.funds, 100_000);
   assert.equal(shown.missing, true);
+});
+
+test('the greeting follows the time of day', () => {
+  assert.deepEqual([4, 5, 11, 12, 16, 17, 21, 22].map((h) => greeting(h).split(' ')[1]),
+    ['night', 'morning', 'morning', 'afternoon', 'afternoon', 'evening', 'evening', 'night']);
 });

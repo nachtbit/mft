@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CURRENCY_INFO } from '../lib/categories.js';
+import { greeting } from '../lib/dates.js';
 import { ICONS } from '../lib/icons.js';
 
 export function Icon({ name, size = 24 }) {
@@ -15,10 +16,12 @@ export function Logo({ large }) {
   return <img className={large ? 'logo large' : 'logo'} src="/logo.svg" alt="" width={size} height={size} />;
 }
 
-export function Header({ title, onProfile, children }) {
+export function Header({ title, greetingName, onProfile, children }) {
   return (
     <header>
-      <h1><Logo />{title}</h1>
+      {greetingName
+        ? <h1 className="greeting"><span>{greeting()},</span><strong>{greetingName}!</strong></h1>
+        : <h1><Logo />{title}</h1>}
       <div className="header-actions">
         {children}
         <button className="avatar" onClick={onProfile} aria-label="Profile and settings">

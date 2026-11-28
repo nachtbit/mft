@@ -95,13 +95,12 @@ export default function AiSettings({ backend, ai, setAi }) {
 
   return (
     <form className="card" onSubmit={testAndSave}>
-      <h2>AI</h2>
-      <p className="muted small">Provider: Ollama Cloud</p>
+      <h2>AI (Ollama Cloud)</h2>
       <label>
         API key
         <input type={show ? 'text' : 'password'} value={draft} maxLength={256} autoComplete="off"
           autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={busy}
-          placeholder={ai.key ? 'Key set. Type to replace it' : 'Paste your key'}
+          placeholder={ai.key ? 'Key saved' : ''}
           onChange={(e) => setDraft(e.target.value)} />
       </label>
       <div className="row">
@@ -128,7 +127,6 @@ export default function AiSettings({ backend, ai, setAi }) {
           {matches.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       </label>
-      {selected && <p className="muted small">Selected: {selected}</p>}
       {models && ai.model && !models.includes(ai.model) && (
         <p role="alert">Your saved model is no longer listed. Choose another.</p>
       )}
@@ -139,9 +137,7 @@ export default function AiSettings({ backend, ai, setAi }) {
         </>
       )}
       <button className="button primary" disabled={busy || !key || !selected}>Test and save</button>
-      <p className="muted small">
-        The test may use a little credit. Your key passes through this app’s server, which is written not to store or log it.
-      </p>
+      <p className="muted small">Chat messages and category totals are sent to Ollama.</p>
       <p role="status">{message}</p>
       {(ai.key || ai.status === 'found') && (
         <button type="button" className="button danger" onClick={remove} disabled={busy}>Remove key</button>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MONTHS, shortDate, today } from '../lib/dates.js';
 import { money, percent } from '../lib/format.js';
-import { analytics, forecast, periodLimit, periodRange } from '../lib/stats.js';
+import { analytics, periodLimit, periodRange } from '../lib/stats.js';
 import { Icon, Progress } from './ui.js';
 
 const PERIODS = [['week', 'Week'], ['month', 'Month'], ['year', 'Year']];
@@ -67,21 +67,6 @@ export default function Analytics({ data, onSetLimit }) {
   const rows = stats.categories.slice(0, 5);
   const rest = stats.categories.slice(5).reduce((sum, c) => sum + c.cents, 0);
   if (rest) rows.push({ name: 'Everything else', cents: rest });
-
-  const outlook = period === 'month' && isCurrent ? forecast(items, meta, now) : null;
-  let insight = null;
-  if (stats.change !== null && stats.total > 0) {
-    const down = stats.change <= 0;
-    insight = {
-      title: down ? 'Good saving pace' : 'Spending is rising',
-      text: `Spending is ${percent(Math.abs(stats.change))} ${down ? 'lower' : 'higher'} than in the same part of the previous period.`,
-    };
-    if (outlook && meta.limit) {
-      insight.text += outlook.remaining >= 0
-        ? ` At this pace, about ${money(outlook.remaining, meta.currency)} of your limit will be left.`
-        : ` At this pace, you will exceed your limit by about ${money(-outlook.remaining, meta.currency)}.`;
-    }
-  }
 
   return (
     <>
@@ -153,12 +138,6 @@ export default function Analytics({ data, onSetLimit }) {
         {!isCurrent && <button className="text-button" onClick={() => setAnchor(now)}>Back to today</button>}
       </section>
 
-      {insight && (
-        <section className="note">
-          <span className="circle light"><Icon name="verified" size={20} /></span>
-          <div><strong>{insight.title}</strong><p>{insight.text}</p></div>
-        </section>
-      )}
     </>
   );
 }

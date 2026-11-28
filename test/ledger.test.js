@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createLedger, extrasFor, MAX_VALUE, parseAmount, roundUpFor } from '../lib/ledger.js';
+import { balance } from '../lib/stats.js';
+import { createLedger, extrasFor, MAX_VALUE, parseAmount } from '../lib/ledger.js';
 
 function memory() {
   const data = new Map();
@@ -25,7 +26,7 @@ const goal = (extra = {}) => ({
   quick: 100_000, locked: false, auto: 0, autoMonth: '', log: {}, ...extra,
 });
 
-test('amounts and round-ups are exact', () => {
+test('amounts are exact', () => {
   assert.equal(parseAmount('1 200,5'), 120050);
   assert.equal(parseAmount('1,234'), 123400);
   assert.equal(parseAmount('348,200.50'), 34820050);
@@ -33,10 +34,6 @@ test('amounts and round-ups are exact', () => {
   assert.equal(parseAmount('0,29'), 29);
   assert.equal(parseAmount('0', { allowZero: true }), 0);
   for (const bad of ['', '0', '-1', '1.234', '1e3', 'abc', '1,00.00', '0,123', '12,3456', '1.234,50']) assert.equal(parseAmount(bad), null, bad);
-  assert.equal(roundUpFor(24_500, 'TRY'), 500);
-  assert.equal(roundUpFor(25_000, 'TRY'), 0);
-  assert.equal(roundUpFor(245, 'AZN'), 55);
-  for (const currency of ['USD', 'EUR', 'GBP']) assert.equal(roundUpFor(101, currency), 99);
 });
 
 test('concurrent adds split into parts without losing entries', async () => {
@@ -65,7 +62,7 @@ test('damaged data is never overwritten', async () => {
   assert.equal(store.data.get('t_2026_11_0'), 'broken');
 });
 
-test('goals: deposits, withdrawals and round-ups never go below zero', async () => {
+test('goals: deposits and withdrawals never go below zero', async () => {
   const ledger = createLedger(memory());
   await ledger.createGoal(goal());
   await ledger.add('2026-11', ['abcd', 1, 245_000, 0, '', 0, -1, 5000, 1000, 'goal0001', 'AZN', 'AZN', 245_000, 6000]);
@@ -79,21 +76,39 @@ test('goals: deposits, withdrawals and round-ups never go below zero', async () 
   assert.equal(saved.log['2026-11'], -6000);
 });
 
-test('auto-deposit starts next month and applies once', async () => {
-  const ledger = createLedger(memory());
-  await ledger.createGoal(goal({ auto: 500, autoMonth: '2026-11' }));
-  assert.equal(await ledger.applyAuto('2026-11'), 0);
-  assert.deepEqual(await Promise.all([ledger.applyAuto('2026-12'), ledger.applyAuto('2026-12')]), [1, 0]);
-  assert.equal((await ledger.loadAll()).goals[0].base, 500);
+test('data saved with the removed auto-saving features still loads with the same balances', async () => {
+  const store = memory();
+  store.data.set('meta', JSON.stringify({
+    v: 3, currency: 'AZN', extra: ['USD'], opening: { AZN: 1000 }, limit: 0, limitCurrency: 'AZN',
+    roundOn: true, cashOn: true, autoGoal: 'goal0001',
+  }));
+  store.data.set('g_goal0001', JSON.stringify(goal({ base: 500, auto: 200, autoMonth: '2026-10', log: { '2026-10': 200 } })));
+  store.data.set('t_2026_11_0', JSON.stringify([['abcd', 1, 245, 0, '', 0, -1, 55, 10, 'goal0001', 'AZN', 'AZN', 245, 65]]));
+  const ledger = createLedger(store);
+
+  const { items, goals, meta } = await ledger.loadAll();
+  assert.equal(goals[0].base + extrasFor(items, 'goal0001'), 565);
+  assert.equal(balance(items, meta.opening.AZN, '2026-11-28'), 1000 - 245 + 10);
+
+  // No further auto-deposit exists, and editing a goal clears the old setting.
+  assert.equal(ledger.applyAuto, undefined);
+  await ledger.editGoal('goal0001', { ...goals[0], title: 'Renamed' });
+  const edited = (await ledger.loadAll()).goals[0];
+  assert.deepEqual([edited.title, edited.base, edited.auto], ['Renamed', 500, 0]);
+
+  // Old data can still be backed up, restored, and deleted.
+  const copy = createLedger(memory());
+  await (await copy.planImport(JSON.stringify(await ledger.exportData()))).apply();
+  assert.deepEqual(await copy.loadAll(), await ledger.loadAll());
+  await ledger.deleteGoal('goal0001');
+  assert.equal((await ledger.loadAll()).items.length, 1);
 });
 
-test('deleting the target goal turns round-up and cashback off', async () => {
+test('new goals never get an auto-deposit', async () => {
   const ledger = createLedger(memory());
-  await ledger.createGoal(goal());
-  await ledger.updateMeta({ roundOn: true, autoGoal: 'goal0001' });
-  await ledger.deleteGoal('goal0001');
-  const { meta, goals } = await ledger.loadAll();
-  assert.deepEqual([goals.length, meta.roundOn, meta.autoGoal], [0, false, '']);
+  await ledger.createGoal(goal({ auto: 500, autoMonth: '2026-11' }));
+  const [created] = (await ledger.loadAll()).goals;
+  assert.deepEqual([created.auto, created.autoMonth], [0, '']);
 });
 
 test('backup restores everything, and import only adds what is missing', async () => {
@@ -125,6 +140,27 @@ test('currencies can be changed without rewriting stored amounts', async () => {
   for (const patch of [{ currency: 'RUB' }, { extra: ['KZT'] }, { currency: 'XXX' }, { extra: ['USD'] }, { extra: ['AZN', 'AZN'] }, { opening: { XXX: 1 } }, { opening: { AZN: -1 } }]) {
     await assert.rejects(ledger.updateMeta(patch), /settings values/);
   }
+});
+
+test('the name is kept through other changes and imports, and is limited', async () => {
+  const ledger = createLedger(memory());
+  await ledger.updateMeta({ name: 'Test Person' });
+  await ledger.updateMeta({ limit: 100 });
+  assert.equal((await ledger.loadAll()).meta.name, 'Test Person');
+  await assert.rejects(ledger.updateMeta({ name: 'x'.repeat(61) }), /settings values/);
+
+  // A backup made before names existed does not erase the name.
+  const old = createLedger(memory());
+  await old.add('2026-11', entry(1));
+  await (await ledger.planImport(JSON.stringify(await old.exportData()))).apply();
+  assert.equal((await ledger.loadAll()).meta.name, 'Test Person');
+});
+
+test('the theme accepts only light or dark', async () => {
+  const ledger = createLedger(memory());
+  await ledger.updateMeta({ theme: 'dark' });
+  assert.equal((await ledger.loadAll()).meta.theme, 'dark');
+  await assert.rejects(ledger.updateMeta({ theme: 'neon' }), /settings values/);
 });
 
 test('invalid backups write nothing', async () => {

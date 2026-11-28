@@ -9,7 +9,7 @@ const categoryOf = (item) => (item.kind ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
 // Shown in the currency the entry was made in.
 const signed = (item) => `${item.kind ? '+' : '−'}${money(item.amount, item.currency)}`;
 
-export function OperationList({ items, currency, onSelect }) {
+export function OperationList({ items, onSelect }) {
   return (
     <ul className="card list">
       {items.map((item) => {
@@ -22,10 +22,7 @@ export function OperationList({ items, currency, onSelect }) {
                 <strong>{item.title || (item.kind ? 'Income' : category.name)}</strong>
                 <small>{category.name} • {whenLabel(item.date, item.minutes)}</small>
               </span>
-              <span className="amount-text">
-                {signed(item)}
-                {item.currency !== currency && <small>≈ {money(item.cents, currency)}</small>}
-              </span>
+              <span className="amount-text">{signed(item)}</span>
             </button>
           </li>
         );
@@ -34,9 +31,8 @@ export function OperationList({ items, currency, onSelect }) {
   );
 }
 
-export function OperationSheet({ item, currency, goals, ledger, reload, onClose }) {
+export function OperationSheet({ item, ledger, reload, onClose }) {
   const { busy, error, run } = useAction();
-  const goal = goals.find((g) => g.id === item.goal);
 
   async function remove() {
     if (!(await confirmAction(`Delete the entry ${signed(item)}?`))) return;
@@ -50,10 +46,7 @@ export function OperationSheet({ item, currency, goals, ledger, reload, onClose 
   return (
     <Sheet title={item.title || categoryOf(item).name} onClose={onClose}>
       <p className="big">{signed(item)}</p>
-      {item.currency !== currency && <p className="muted">≈ {money(item.cents, currency)}</p>}
       <p className="muted">{categoryOf(item).name} • {shortDate(item.date)} {item.date.slice(0, 4)}</p>
-      {goal && item.roundUp > 0 && <p className="muted">Round-up to “{goal.title}”: {money(item.roundUp, item.currency)}</p>}
-      {goal && item.cashback > 0 && <p className="muted">Cashback to “{goal.title}”: {money(item.cashback, item.currency)}</p>}
       {error && <p role="alert">{error}</p>}
       <button className="button danger" onClick={remove} disabled={busy}>
         <Icon name="delete" size={20} />Delete
@@ -62,7 +55,7 @@ export function OperationSheet({ item, currency, goals, ledger, reload, onClose 
   );
 }
 
-export function AllOperations({ items, currency, onSelect, onClose }) {
+export function AllOperations({ items, onSelect, onClose }) {
   const [month, setMonth] = useState(() => today().slice(0, 7));
   const list = items.filter((e) => e.month === month);
   return (
@@ -76,7 +69,7 @@ export function AllOperations({ items, currency, onSelect, onClose }) {
           <Icon name="chevron_right" />
         </button>
       </div>
-      {list.length ? <OperationList items={list} currency={currency} onSelect={onSelect} /> : <p className="muted center">No entries for this month.</p>}
+      {list.length ? <OperationList items={list} onSelect={onSelect} /> : <p className="muted center">No entries for this month.</p>}
     </Sheet>
   );
 }

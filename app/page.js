@@ -6,6 +6,7 @@ import Assistant from '../components/Assistant.js';
 import EntrySheet from '../components/EntrySheet.js';
 import { DepositSheet, GoalForm, GoalSheet } from '../components/GoalSheets.js';
 import Home from '../components/Home.js';
+import NameForm from '../components/NameForm.js';
 import { AllOperations, OperationSheet } from '../components/Operations.js';
 import Profile from '../components/Profile.js';
 import Savings from '../components/Savings.js';
@@ -14,6 +15,7 @@ import { CURRENCY_INFO } from '../lib/categories.js';
 import { loadRates } from '../lib/client/rates.js';
 import { loadKey } from '../lib/client/secureKey.js';
 import { createBackend, webApp } from '../lib/client/telegram.js';
+import { applyTheme, cachedTheme } from '../lib/client/theme.js';
 import { enabledCurrencies } from '../lib/currency.js';
 import { today } from '../lib/dates.js';
 import { createLedger } from '../lib/ledger.js';
@@ -25,7 +27,6 @@ const TABS = [
   ['savings', 'Savings', 'savings'],
   ['assistant', 'Assistant', 'robot_2'],
 ];
-const BACKGROUND = '#f9f9fb';
 
 export default function Page() {
   const [app, setApp] = useState(null);
@@ -52,13 +53,9 @@ export default function Page() {
     const telegram = webApp();
     telegram?.ready();
     telegram?.expand();
-    if (telegram?.initData) {
-      telegram.setHeaderColor(BACKGROUND);
-      telegram.setBackgroundColor(BACKGROUND);
-    }
+    applyTheme(cachedTheme());
     const ledger = createLedger(backend);
     try {
-      await ledger.applyAuto(today().slice(0, 7));
       setData(await ledger.loadAll());
     } catch (error) {
       setProblem(error.message);
@@ -89,6 +86,12 @@ export default function Page() {
     fetchRates();
   }, [fetchRates]);
 
+  const theme = data && (data.meta.theme ?? 'light');
+
+  useEffect(() => {
+    if (theme) applyTheme(theme);
+  }, [theme]);
+
   // Figures in the default currency, for display only.
   const shownData = useMemo(() => data && view(data, table, today()), [data, table]);
 
@@ -105,6 +108,17 @@ export default function Page() {
 
   const { ledger, backend } = app;
   const reload = async () => setData(await ledger.loadAll());
+
+  // First run: ask for the name used in the greeting.
+  if (!data.meta.name?.trim()) {
+    return (
+      <main className="problem welcome">
+        <Logo large />
+        <h2>Welcome to MFT</h2>
+        <NameForm ledger={ledger} reload={reload} button="Continue" />
+      </main>
+    );
+  }
   const close = () => setSheet(null);
   const select = (item) => setSheet({ type: 'operation', item });
   // Sheets that change data work with the stored amounts, not the converted ones.
@@ -125,7 +139,8 @@ export default function Page() {
 
   return (
     <>
-      <Header title={TABS.find(([key]) => key === tab)[1]} onProfile={() => setProfile(true)}>
+      <Header title={TABS.find(([key]) => key === tab)[1]} greetingName={tab === 'home' ? data.meta.name : ''}
+        onProfile={() => setProfile(true)}>
         {tab === 'savings' && (
           <select className="currency" aria-label="Display currency" value={shownCurrency || base}
             onChange={(e) => setDisplay(e.target.value === base ? '' : e.target.value)}>
@@ -164,8 +179,8 @@ export default function Page() {
       </nav>
 
       {sheet?.type === 'entry' && <EntrySheet kind={sheet.kind} {...shared} />}
-      {sheet?.type === 'operation' && <OperationSheet item={sheet.item} currency={base} {...shared} />}
-      {sheet?.type === 'all' && <AllOperations items={shownData.items} currency={base} onSelect={select} onClose={close} />}
+      {sheet?.type === 'operation' && <OperationSheet item={sheet.item} {...shared} />}
+      {sheet?.type === 'all' && <AllOperations items={shownData.items} onSelect={select} onClose={close} />}
       {sheet?.type === 'deposit' && <DepositSheet {...shared} onNewGoal={() => setSheet({ type: 'goalForm' })} />}
       {sheet?.type === 'goalForm' && <GoalForm {...shared} goal={openGoal || undefined} />}
       {sheet?.type === 'goal' && openGoal && (

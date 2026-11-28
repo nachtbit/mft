@@ -4,6 +4,7 @@ import { api } from '../lib/client/api.js';
 import { parseAmount } from '../lib/ledger.js';
 import AiSettings from './AiSettings.js';
 import Backup from './Backup.js';
+import NameForm from './NameForm.js';
 import { Icon, useAction } from './ui.js';
 
 const toInput = (cents) => (cents ? String(cents / 100) : '');
@@ -64,7 +65,6 @@ function Budget({ meta, items, ledger, reload }) {
           {CURRENCIES.map((c) => <option key={c} value={c}>{optionLabel(c)}</option>)}
         </select>
       </label>
-      <p className="muted small">Totals and analytics are shown in it. Earlier entries keep their own currency.</p>
       <fieldset>
         <legend>Additional currencies</legend>
         <div className="chips">
@@ -76,7 +76,6 @@ function Budget({ meta, items, ledger, reload }) {
           ))}
         </div>
       </fieldset>
-      <p className="muted small">You can choose these when adding entries or saving money.</p>
 
       <h2 className="subheading">Balance and budget</h2>
       {wallets.map((c) => (
@@ -93,6 +92,27 @@ function Budget({ meta, items, ledger, reload }) {
       <button className="button primary" disabled={busy}>Save</button>
       <p role="status">{saved ? 'Saved' : ''}</p>
     </form>
+  );
+}
+
+function ThemeSwitch({ theme, ledger, reload }) {
+  const { busy, error, run } = useAction();
+  const choose = (value) => run(async () => {
+    await ledger.updateMeta({ theme: value });
+    await reload();
+  });
+
+  return (
+    <>
+      <div className="segmented switcher" role="group" aria-label="Theme">
+        {[['light', 'Light'], ['dark', 'Dark']].map(([value, name]) => (
+          <button type="button" key={value} aria-pressed={theme === value} disabled={busy} onClick={() => choose(value)}>
+            {name}
+          </button>
+        ))}
+      </div>
+      {error && <p role="alert">{error}</p>}
+    </>
   );
 }
 
@@ -117,6 +137,14 @@ export default function Profile({ data, backend, ledger, reload, ai, setAi, onCl
         <span className="spacer" />
       </header>
       <main>
+        <div className="card">
+          <h2>Profile</h2>
+          <NameForm initial={data.meta.name} ledger={ledger} reload={reload} button="Save name" />
+        </div>
+        <div className="card">
+          <h2>Theme</h2>
+          <ThemeSwitch theme={data.meta.theme ?? 'light'} ledger={ledger} reload={reload} />
+        </div>
         <Budget meta={data.meta} items={data.items} ledger={ledger} reload={reload} />
         <AiSettings backend={backend} ai={ai} setAi={setAi} />
         <Backup ledger={ledger} onImported={reload} />

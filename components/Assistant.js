@@ -33,9 +33,8 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
   const outlook = forecast(items, meta, now);
   const weekend = weekendPattern(items, now);
   const [input, setInput] = useState('');
-  const [hint, setHint] = useState('');
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [sheet, setSheet] = useState('');
-  const field = useRef(null);
   const end = useRef(null);
   const ready = Boolean(ai.key && ai.model);
 
@@ -46,9 +45,8 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
   async function send(text) {
     const question = text.trim();
     if (!question || chat.waiting) return;
-    if (!ready) return setHint('setup');
+    if (!ready) return setNeedsSetup(true);
     const messages = [...chat.messages, { role: 'user', content: question }];
-    setHint('');
     setInput('');
     setChat({ messages, waiting: true, error: '' });
     try {
@@ -74,20 +72,20 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
           <span className="label">● Insights</span>
           <strong className="headline">{score ? score.label : 'Not enough data'}</strong>
           <span className="muted">
-            {!score ? 'Add at least 5 expenses' : score.penalties[0]?.reason ?? 'All indicators are in a safe range'}
+            {score?.penalties[0]?.reason}
           </span>
         </span>
         <Score value={score?.value} />
       </button>
 
-      <div className="title-row"><span className="muted">Smart observations</span><small>From your entries</small></div>
+      <div className="title-row"><span className="muted">Observations</span></div>
 
       <section className="card">
         <div className="row">
           <span className="square"><Icon name="credit_card_off" /></span>
           <span className="grow">
             <strong>Subscriptions</strong>
-            <small>{subs.items.length ? `Payments in 30 days: ${subs.items.length}. Check that you need them all.` : 'No subscriptions recorded in 30 days'}</small>
+            <small>{subs.items.length ? `${subs.items.length} in the last 30 days` : 'None in the last 30 days'}</small>
           </span>
           {subs.total > 0 && <span className="pill alert-pill">−{money(subs.total, meta.currency)}/mo</span>}
         </div>
@@ -106,7 +104,7 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
           <span className="square"><Icon name="trending_up" /></span>
           <span className="grow">
             <strong>End-of-month forecast</strong>
-            <small>{outlook ? `Based on your last ${outlook.days} days of spending` : 'Needs at least 3 days of expenses'}</small>
+            {!outlook && <small>Not enough data</small>}
           </span>
         </div>
         {outlook && (
@@ -125,7 +123,7 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
         <span className="grow">
           <strong>Weekend pattern</strong>
           <small>
-            {weekend === null ? 'Needs at least 2 weeks of data'
+            {weekend === null ? 'Not enough data'
               : weekend === 0 ? 'Weekend and weekday spending are the same'
               : `Saturday and Sunday spending is ${Math.abs(weekend)}% ${weekend > 0 ? 'higher' : 'lower'}`}
           </small>
@@ -152,33 +150,22 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
         <div ref={end} />
       </div>
 
-      {(hint === 'setup' || (!ready && ai.status !== 'loading')) && (
+      {(needsSetup || (!ready && ai.status !== 'loading')) && (
         <div className="card center">
-          <p className="muted">Set up AI to ask questions.</p>
           <button className="button primary" onClick={onSetup}>Set up AI</button>
         </div>
       )}
       {chat.error && <p role="alert">{chat.error}</p>}
-      {hint && hint !== 'setup' && <p className="muted small">{hint}</p>}
 
       <form className="composer" onSubmit={(e) => { e.preventDefault(); send(input); }}>
-        <button type="button" className="mic" aria-label="Voice input"
-          onClick={() => { field.current.focus(); setHint('For voice input, tap the microphone on your phone keyboard.'); }}>
-          <Icon name="mic" size={20} />
-        </button>
-        <input ref={field} value={input} maxLength={500} placeholder="Ask the assistant…" aria-label="Question for the assistant"
+        <input value={input} maxLength={500} placeholder="Ask the assistant…" aria-label="Question for the assistant"
           onChange={(e) => setInput(e.target.value)} />
         <button className="send" aria-label="Send" disabled={chat.waiting || !input.trim()}>
           <Icon name="arrow_upward" size={20} />
         </button>
       </form>
-      <p className="muted small center">
-        Your messages, balance, limit, savings and category totals are sent to Ollama. Entry titles and goal names are not added. Requests may use credit.
-      </p>
-
       {sheet === 'score' && (
         <Sheet title="How the score works" onClose={() => setSheet('')}>
-          <p className="muted">A simple calculation from your entries, not financial advice. It starts at 100 points.</p>
           {!score ? <p>Not enough data yet.</p>
             : !score.penalties.length ? <p>No points were taken off.</p>
             : <ul className="plain">{score.penalties.map((p) => <li key={p.reason}><span className="grow">{p.reason}</span><strong>−{p.points}</strong></li>)}</ul>}
@@ -186,7 +173,7 @@ export default function Assistant({ data, ai, chat, setChat, onSetup, onSelect }
       )}
       {sheet === 'subs' && (
         <Sheet title="Subscriptions in the last 30 days" onClose={() => setSheet('')}>
-          <OperationList items={subs.items} currency={meta.currency} onSelect={(item) => { setSheet(''); onSelect(item); }} />
+          <OperationList items={subs.items} onSelect={(item) => { setSheet(''); onSelect(item); }} />
         </Sheet>
       )}
     </>
