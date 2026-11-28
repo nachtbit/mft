@@ -35,7 +35,7 @@ for the current month only. The score, forecast and patterns are simple calculat
 - **Data:** Telegram CloudStorage, one separate ledger per Telegram account. There is no database.
 - **App and API:** Next.js on Vercel.
 - **AI:** Ollama Cloud, using each user's own API key, entered in Settings.
-- **Bot:** replies to allowed users with a button that opens the app.
+- **Bot:** the menu button opens the app; allowed users also get short text replies.
 
 ## Vercel variables
 
@@ -48,18 +48,20 @@ for the current month only. The score, forecast and patterns are simple calculat
 
 Redeploy after changing them.
 
-## Register the bot webhook
+## Set up the bot
 
-After deploying, put `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` and `APP_URL` in `.env.local`
-(same values as Vercel), then run:
+After deploying, put `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` and `APP_URL` (the production URL) in
+`.env.local`, then run:
 
 ```bash
 node --env-file=.env.local scripts/set-webhook.mjs
 ```
 
-This discards bot messages that are still waiting. While a webhook is set, `getUpdates` does not work.
+This registers the webhook and sets the chat menu button to **Open**, which opens the app directly.
+It discards bot messages that are still waiting. While a webhook is set, `getUpdates` does not work.
 
-Set the menu button in @BotFather with `/setmenubutton`.
+For an Open button in the chat list and on the bot's profile, also enable the **Main Mini App** in
+@BotFather (`/mybots` → your bot → Bot Settings → Configure Mini App) with the same URL.
 
 ## Development
 

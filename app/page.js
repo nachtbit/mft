@@ -9,7 +9,7 @@ import Home from '../components/Home.js';
 import { AllOperations, OperationSheet } from '../components/Operations.js';
 import Profile from '../components/Profile.js';
 import Savings from '../components/Savings.js';
-import { Header, Icon, RatesCredit } from '../components/ui.js';
+import { Header, Icon, Logo, RatesCredit } from '../components/ui.js';
 import { CURRENCY_INFO } from '../lib/categories.js';
 import { loadRates } from '../lib/client/rates.js';
 import { loadKey } from '../lib/client/secureKey.js';
@@ -95,12 +95,13 @@ export default function Page() {
   if (problem) {
     return (
       <main className="problem">
+        <Logo large />
         <p role="alert">{problem}</p>
         <button className="button primary" onClick={start}>Retry</button>
       </main>
     );
   }
-  if (!app || !data) return <main className="problem"><p>Loading…</p></main>;
+  if (!app || !data) return <main className="problem"><Logo large /><p>Loading…</p></main>;
 
   const { ledger, backend } = app;
   const reload = async () => setData(await ledger.loadAll());

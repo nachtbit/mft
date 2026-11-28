@@ -10,10 +10,15 @@ export function Icon({ name, size = 24 }) {
   );
 }
 
+export function Logo({ large }) {
+  const size = large ? 72 : 32;
+  return <img className={large ? 'logo large' : 'logo'} src="/logo.svg" alt="" width={size} height={size} />;
+}
+
 export function Header({ title, onProfile, children }) {
   return (
     <header>
-      <h1><Icon name="account_balance_wallet" size={22} />{title}</h1>
+      <h1><Logo />{title}</h1>
       <div className="header-actions">
         {children}
         <button className="avatar" onClick={onProfile} aria-label="Profile and settings">

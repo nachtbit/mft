@@ -24,7 +24,6 @@ globalThis.fetch = async (url, options) => {
 beforeEach(() => {
   Object.assign(process.env, {
     BOT_TOKEN: TOKEN, ALLOWED_IDS: '111,222,333,444', TELEGRAM_WEBHOOK_SECRET: SECRET,
-    APP_URL: 'https://app.test',
   });
   calls.length = 0;
 });
@@ -120,7 +119,8 @@ test('webhook requires the secret and answers only allowed users in private chat
   const [status, reply] = await read(await send(update(111)));
   assert.equal(status, 200);
   assert.equal(reply.method, 'sendMessage');
-  assert.equal(reply.reply_markup.inline_keyboard[0][0].web_app.url, 'https://app.test');
+  // The app opens from the menu button, so replies carry no button of their own.
+  assert.equal(reply.reply_markup, undefined);
 
   for (const body of [update(999), update(111, { chat: { id: -5, type: 'group' } }), {}]) {
     assert.deepEqual(await read(await send(body)), [200, { ok: true }]);
